@@ -2,9 +2,9 @@
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import { Campaign, DonationEngineConfig, Donation, Toast, RewardTier } from '@/types';
-import { sampleCampaign, defaultEngineConfig } from '@/lib/sampleData';
 import { generateBackerName, generateDonationAmount, getVelocityIntervals } from '@/lib/nameGenerator';
 import { generateId } from '@/lib/utils';
+import { saveProject, StoredProject } from '@/lib/store';
 
 interface CampaignState {
   campaign: Campaign;
@@ -19,14 +19,7 @@ type CampaignAction =
   | { type: 'RESET_CAMPAIGN' }
   | { type: 'SET_ENGINE_CONFIG'; payload: Partial<DonationEngineConfig> }
   | { type: 'ADD_TOAST'; payload: Toast }
-  | { type: 'REMOVE_TOAST'; payload: string }
-  | { type: 'LOAD_STATE'; payload: CampaignState };
-
-const initialState: CampaignState = {
-  campaign: sampleCampaign,
-  engineConfig: defaultEngineConfig,
-  toasts: []
-};
+  | { type: 'REMOVE_TOAST'; payload: string };
 
 function campaignReducer(state: CampaignState, action: CampaignAction): CampaignState {
   switch (action.type) {
@@ -36,20 +29,19 @@ function campaignReducer(state: CampaignState, action: CampaignAction): Campaign
       return { ...state, campaign: { ...state.campaign, ...action.payload } };
     case 'ADD_DONATION': {
       const donation = action.payload;
-      const newDonations = [...state.campaign.donations, donation];
       return {
         ...state,
         campaign: {
           ...state.campaign,
-          donations: newDonations,
+          donations: [...state.campaign.donations, donation],
           amountRaised: state.campaign.amountRaised + donation.amount,
           backerCount: state.campaign.backerCount + 1,
           rewardTiers: state.campaign.rewardTiers.map(tier =>
             tier.id === donation.rewardTierId
               ? { ...tier, quantityClaimed: tier.quantityClaimed + 1 }
               : tier
-          )
-        }
+          ),
+        },
       };
     }
     case 'RESET_CAMPAIGN':
@@ -62,9 +54,9 @@ function campaignReducer(state: CampaignState, action: CampaignAction): Campaign
           donations: [],
           rewardTiers: state.campaign.rewardTiers.map(tier => ({
             ...tier,
-            quantityClaimed: 0
-          }))
-        }
+            quantityClaimed: 0,
+          })),
+        },
       };
     case 'SET_ENGINE_CONFIG':
       return { ...state, engineConfig: { ...state.engineConfig, ...action.payload } };
@@ -72,8 +64,6 @@ function campaignReducer(state: CampaignState, action: CampaignAction): Campaign
       return { ...state, toasts: [...state.toasts, action.payload] };
     case 'REMOVE_TOAST':
       return { ...state, toasts: state.toasts.filter(t => t.id !== action.payload) };
-    case 'LOAD_STATE':
-      return action.payload;
     default:
       return state;
   }
@@ -97,51 +87,39 @@ interface CampaignContextValue {
 
 const CampaignContext = createContext<CampaignContextValue | null>(null);
 
-const STORAGE_KEY = 'indiefauxfaux_campaign_state';
+interface CampaignProviderProps {
+  children: React.ReactNode;
+  /** The project data to initialise from. */
+  project: StoredProject;
+  /** When true, persists changes back to localStorage (creator mode). */
+  persist?: boolean;
+  /** When true, auto-starts the donation engine on mount (public/share mode). */
+  autoStart?: boolean;
+}
 
-export function CampaignProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(campaignReducer, initialState);
+export function CampaignProvider({ children, project, persist = false, autoStart = false }: CampaignProviderProps) {
+  const [state, dispatch] = useReducer(campaignReducer, {
+    campaign: project.campaign,
+    engineConfig: project.engineConfig,
+    toasts: [],
+  });
+
   const engineTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isInitializedRef = useRef(false);
+  const hasAutoStartedRef = useRef(false);
 
-  // Load state from localStorage on mount
+  // Persist to localStorage when in creator mode
   useEffect(() => {
-    if (isInitializedRef.current) return;
-    isInitializedRef.current = true;
-
+    if (!persist) return;
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Ensure engine is stopped when loading
-        parsed.engineConfig.isRunning = false;
-        dispatch({ type: 'LOAD_STATE', payload: parsed });
-      }
+      saveProject({ campaign: state.campaign, engineConfig: state.engineConfig });
     } catch (error) {
-      console.error('Failed to load campaign state:', error);
+      console.error('Failed to save project:', error);
     }
-  }, []);
-
-  // Save state to localStorage when it changes
-  useEffect(() => {
-    if (!isInitializedRef.current) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (error) {
-      console.error('Failed to save campaign state:', error);
-    }
-  }, [state]);
+  }, [state.campaign, state.engineConfig, persist]);
 
   const addToast = useCallback((message: string, type: Toast['type'] = 'donation') => {
-    const toast: Toast = {
-      id: generateId(),
-      message,
-      type,
-      timestamp: Date.now()
-    };
+    const toast: Toast = { id: generateId(), message, type, timestamp: Date.now() };
     dispatch({ type: 'ADD_TOAST', payload: toast });
-
-    // Auto-remove toast after 5 seconds
     setTimeout(() => {
       dispatch({ type: 'REMOVE_TOAST', payload: toast.id });
     }, 5000);
@@ -154,27 +132,12 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
       backerName,
       amount,
       rewardTierId: rewardTierId || null,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     dispatch({ type: 'ADD_DONATION', payload: donation });
-
-    // Show toast
     addToast(`${backerName} just backed $${amount}!`, 'donation');
-
-    // Check for milestones
-    const newTotal = state.campaign.amountRaised + amount;
-    const percentages = [25, 50, 75, 100];
-    for (const pct of percentages) {
-      const threshold = state.campaign.fundingGoal * (pct / 100);
-      if (state.campaign.amountRaised < threshold && newTotal >= threshold) {
-        setTimeout(() => {
-          addToast(`${pct}% funded! 🎉`, 'milestone');
-        }, 1500);
-        break;
-      }
-    }
-  }, [state.campaign.amountRaised, state.campaign.fundingGoal, addToast]);
+  }, [addToast]);
 
   const triggerManualDonation = useCallback((customAmount?: number) => {
     const amount = customAmount ?? generateDonationAmount(state.campaign.rewardTiers);
@@ -208,7 +171,15 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Effect to manage donation engine
+  // Auto-start on mount for public pages
+  useEffect(() => {
+    if (autoStart && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
+      startEngine();
+    }
+  }, [autoStart, startEngine]);
+
+  // Manage donation engine
   useEffect(() => {
     if (state.engineConfig.isRunning) {
       scheduleNextDonation();
@@ -216,7 +187,6 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(engineTimerRef.current);
       engineTimerRef.current = null;
     }
-
     return () => {
       if (engineTimerRef.current) {
         clearTimeout(engineTimerRef.current);
@@ -234,7 +204,6 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
   }, [addToast]);
 
   const setEngineConfig = useCallback((config: Partial<DonationEngineConfig>) => {
-    // If changing velocity mode, update intervals
     if (config.velocityMode) {
       const intervals = getVelocityIntervals(config.velocityMode);
       config.minInterval = intervals.min;
@@ -255,14 +224,10 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
   }, [state.campaign.rewardTiers]);
 
   const addRewardTier = useCallback((tier: Omit<RewardTier, 'id' | 'quantityClaimed'>) => {
-    const newTier: RewardTier = {
-      ...tier,
-      id: generateId(),
-      quantityClaimed: 0
-    };
+    const newTier: RewardTier = { ...tier, id: generateId(), quantityClaimed: 0 };
     dispatch({
       type: 'UPDATE_CAMPAIGN',
-      payload: { rewardTiers: [...state.campaign.rewardTiers, newTier] }
+      payload: { rewardTiers: [...state.campaign.rewardTiers, newTier] },
     });
   }, [state.campaign.rewardTiers]);
 
@@ -286,7 +251,7 @@ export function CampaignProvider({ children }: { children: React.ReactNode }) {
         removeToast,
         updateRewardTier,
         addRewardTier,
-        deleteRewardTier
+        deleteRewardTier,
       }}
     >
       {children}

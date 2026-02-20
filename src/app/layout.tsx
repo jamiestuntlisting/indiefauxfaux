@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CampaignProvider } from "@/contexts/CampaignContext";
 
 export const metadata: Metadata = {
   title: "IndieFauxFaux - The Crowdfunding Parody",
@@ -18,9 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <CampaignProvider>
-          {children}
-        </CampaignProvider>
+        {children}
       </body>
     </html>
   );
