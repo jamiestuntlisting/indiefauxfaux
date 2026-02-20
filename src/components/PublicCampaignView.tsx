@@ -17,21 +17,22 @@ export default function PublicCampaignView() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Clean public header — no dashboard links */}
+      {/* Public header — IndieFoFo branding, no dashboard links */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">IF</span>
+              <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">iF</span>
               </div>
               <span className="text-xl font-bold text-gray-900">
-                Indie<span className="text-teal-600">Faux</span>Faux
+                Indie<span className="text-rose-500">FoFo</span>
               </span>
             </div>
             <nav className="hidden md:flex items-center space-x-8">
-              <span className="text-gray-600 cursor-default">Explore</span>
-              <span className="text-gray-600 cursor-default">Start a Project</span>
+              <span className="text-gray-600 cursor-default hover:text-gray-900">Explore</span>
+              <span className="text-gray-600 cursor-default hover:text-gray-900">Start a Project</span>
+              <span className="text-gray-600 cursor-default hover:text-gray-900">About</span>
             </nav>
           </div>
         </div>
@@ -58,7 +59,7 @@ export default function PublicCampaignView() {
               />
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="w-full mt-6 py-4 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-semibold rounded-lg hover:from-teal-600 hover:to-emerald-700 transition-all shadow-lg shadow-teal-500/25"
+                className="w-full mt-6 py-4 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold rounded-lg hover:from-rose-600 hover:to-pink-700 transition-all shadow-lg shadow-rose-500/25"
               >
                 Back This Project
               </button>
@@ -95,7 +96,7 @@ export default function PublicCampaignView() {
                 />
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="w-full mt-6 py-4 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-semibold rounded-lg hover:from-teal-600 hover:to-emerald-700 transition-all shadow-lg shadow-teal-500/25"
+                  className="w-full mt-6 py-4 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold rounded-lg hover:from-rose-600 hover:to-pink-700 transition-all shadow-lg shadow-rose-500/25"
                 >
                   Back This Project
                 </button>

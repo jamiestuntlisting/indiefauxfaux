@@ -1,5 +1,5 @@
 import { Campaign, DonationEngineConfig } from '@/types';
-import { sampleCampaign, defaultEngineConfig } from './sampleData';
+import { defaultEngineConfig } from './sampleData';
 import { generateId } from './utils';
 
 export interface StoredProject {
@@ -41,12 +41,68 @@ export function deleteProject(id: string): void {
   localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
 }
 
-export function createNewProject(name?: string): StoredProject {
+export interface GeneratedCampaignData {
+  title: string;
+  tagline: string;
+  description: string;
+  story: string;
+  faq: { question: string; answer: string }[];
+  updates: { title: string; content: string; daysAgo: number }[];
+  creatorName: string;
+  creatorBio: string;
+  fundingGoal: number;
+  rewardTiers: {
+    title: string;
+    description: string;
+    price: number;
+    quantityAvailable: number | null;
+    estimatedDelivery: string;
+  }[];
+  thumbnailDescription: string;
+}
+
+export function createProjectFromGenerated(data: GeneratedCampaignData): StoredProject {
+  const id = generateId();
+
+  const campaign: Campaign = {
+    id,
+    title: data.title,
+    tagline: data.tagline,
+    description: data.description,
+    story: data.story,
+    faq: data.faq.map(f => ({ ...f, id: generateId() })),
+    updates: data.updates.map(u => ({
+      id: generateId(),
+      title: u.title,
+      content: u.content,
+      date: new Date(Date.now() - u.daysAgo * 24 * 60 * 60 * 1000).toISOString(),
+    })),
+    creatorName: data.creatorName,
+    creatorBio: data.creatorBio,
+    creatorImage: null,
+    projectImage: null,
+    projectVideo: null,
+    fundingGoal: data.fundingGoal,
+    amountRaised: 0,
+    backerCount: 0,
+    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date().toISOString(),
+    rewardTiers: data.rewardTiers.map(t => ({
+      ...t,
+      id: generateId(),
+      quantityClaimed: 0,
+    })),
+    donations: [],
+  };
+
+  return { campaign, engineConfig: { ...defaultEngineConfig } };
+}
+
+export function createBlankProject(): StoredProject {
   const id = generateId();
   const campaign: Campaign = {
-    ...sampleCampaign,
     id,
-    title: name || 'Untitled Campaign',
+    title: 'Untitled Campaign',
     tagline: 'Your amazing project tagline goes here.',
     description: 'Describe your project...',
     story: '## Tell Your Story\n\nWhat is your project about? Why should people back it?',
@@ -54,27 +110,15 @@ export function createNewProject(name?: string): StoredProject {
     updates: [],
     creatorName: 'Your Name',
     creatorBio: 'Tell backers about yourself.',
+    creatorImage: null,
+    projectImage: null,
+    projectVideo: null,
+    fundingGoal: 50000,
     amountRaised: 0,
     backerCount: 0,
-    donations: [],
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: new Date().toISOString(),
-    rewardTiers: sampleCampaign.rewardTiers.map(t => ({ ...t, id: generateId(), quantityClaimed: 0 })),
-  };
-
-  return { campaign, engineConfig: { ...defaultEngineConfig } };
-}
-
-export function duplicateAsGorillaw(): StoredProject {
-  const id = generateId();
-  const campaign: Campaign = {
-    ...sampleCampaign,
-    id,
-    rewardTiers: sampleCampaign.rewardTiers.map(t => ({ ...t, id: generateId(), quantityClaimed: 0 })),
-    faq: sampleCampaign.faq.map(f => ({ ...f, id: generateId() })),
-    updates: sampleCampaign.updates.map(u => ({ ...u, id: generateId() })),
-    amountRaised: 0,
-    backerCount: 0,
+    rewardTiers: [],
     donations: [],
   };
 

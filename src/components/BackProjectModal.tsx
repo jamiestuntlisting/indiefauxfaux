@@ -72,7 +72,7 @@ export default function BackProjectModal({ isOpen, onClose, projectTitle }: Back
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Plot Twist!</h2>
               <p className="text-gray-600 mb-4">
-                This is <span className="font-semibold text-teal-600">IndieFauxFaux</span> — a crowdfunding parody site!
+                This is <span className="font-semibold text-rose-500">IndieFoFo</span> — a crowdfunding parody site!
               </p>
               <p className="text-sm text-gray-500">
                 No actual payment processing here. But we appreciate your enthusiasm for &quot;{projectTitle}&quot;!
